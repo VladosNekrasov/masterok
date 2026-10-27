@@ -8,7 +8,7 @@ window.Store = (() => {
   const DEFAULTS = { siteName: 'Мастерок', region: 'Кемеровская область', regionShort: 'Кузбасс', regionIn: 'в Кузбассе', cities: ['Кемерово'], days: { top: 7, premium: 30 }, autoApprove: false, reviewPremod: false, contactEmail: '', contactPhone: '', contactTelegram: '' };
   const empty = () => ({ settings: { ...DEFAULTS }, categories: [], users: [], masters: [], reviews: [], requests: [], payments: [], reports: [], notifications: [], log: [] });
 
-  let sb = null, db = empty(), session = null, rcache = null, onChange = () => {}, recovery = false;
+  let sb = null, db = empty(), session = null, rcache = null, onChange = () => {}, recovery = false, local = false;
 
   // ---------- преобразование полей: snake_case в базе, camelCase в коде
   const ALIAS = { when: 'when_txt' }, BACK = { when_txt: 'when' };
@@ -71,7 +71,8 @@ window.Store = (() => {
   const configured = () => !!(window.CONFIG && CONFIG.SUPABASE_URL && !/YOUR-/.test(CONFIG.SUPABASE_URL) && CONFIG.SUPABASE_ANON_KEY && !/YOUR-/.test(CONFIG.SUPABASE_ANON_KEY));
   async function init(cb) {
     onChange = cb || onChange;
-    sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, { auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true, autoRefreshToken: true } });
+    local = !configured();
+    sb = local ? await LocalDB.create() : supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, { auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true, autoRefreshToken: true } });
     const { data } = await sb.auth.getSession();
     session = data.session;
     sb.auth.onAuthStateChange((ev, s) => {
@@ -518,7 +519,7 @@ window.Store = (() => {
 
   return {
     FOREVER, ROLES, REPORT_REASONS, SANCTION,
-    configured, init, reload, takeRecovery, settings, saveSettings,
+    configured, isLocal: () => local, init, reload, takeRecovery, settings, saveSettings,
     can, isStaff, isBanned, limit, until, banText, canSanction, isRestricted,
     user, userById, login, logout, register, resetPassword, setPassword, changePassword, users, updateUser, deleteUser, setRole,
     myNotifs, unread, readNotifs, log,

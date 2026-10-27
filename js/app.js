@@ -59,6 +59,26 @@ window.App = (() => {
     });
   }
 
+  // Тестовый режим: метка в углу и сброс базы
+  function testBadge() {
+    const b = document.createElement('button');
+    b.className = 'test-badge'; b.type = 'button';
+    b.innerHTML = `${icon('flask', 'fill')}<span>Тестовый режим</span>`;
+    b.onclick = () => U.modal({
+      title: 'Тестовый режим',
+      body: `<p>Сайт работает на локальной базе данных прямо в этом браузере. Правила доступа те же, что будут на сервере.</p>
+        <ul class="ul"><li>Подтверждения по почте нет, регистрация мгновенная.</li><li>Первый зарегистрированный аккаунт становится владельцем.</li><li>Данные видны только в этом браузере на этом устройстве.</li><li>Чтобы подключить настоящий сервер, впишите ключи Supabase в <code>js/config.js</code>.</li></ul>
+        <div class="modal-actions"><button class="btn" data-close>Закрыть</button><button class="btn btn-danger-solid" id="wipe">${icon('trash')} Стереть тестовую базу</button></div>`,
+      onMount(el) {
+        el.querySelector('#wipe').onclick = async () => {
+          if (!(await U.confirm('Удалить всех пользователей, мастеров и отзывы из тестовой базы?', 'Стереть'))) return;
+          await LocalDB.wipe(); location.hash = '#/'; location.reload();
+        };
+      }
+    });
+    document.body.appendChild(b);
+  }
+
   function notifPanel(el) {
     if (UI.isOpen(el)) return UI.closePop();
     const list = Store.myNotifs().slice(0, 40);
@@ -119,9 +139,7 @@ window.App = (() => {
     document.addEventListener('pointerdown', e => {
       if (document.body.classList.contains('nav-open') && !e.target.closest('.nav, .burger')) document.body.classList.remove('nav-open');
     });
-    if (!Store.configured()) {
-      return screen('Сайт почти готов', 'Осталось подключить базу данных: впишите адрес проекта Supabase и ключ в файл <code>js/config.js</code>. Пошаговая инструкция в файле <code>SETUP.md</code>.');
-    }
+    if (!Store.configured()) document.querySelector('.boot').insertAdjacentHTML('beforeend', '<p class="muted sm boot-note">Запускаем тестовую базу данных…</p>');
     const fromEmail = /[?&]code=/.test(location.search);
     try {
       await Store.init(() => render());
@@ -129,6 +147,7 @@ window.App = (() => {
       return screen('Нет связи с сервером', 'Не удалось загрузить данные. Проверьте интернет и обновите страницу.', `<button class="btn btn-primary" onclick="location.reload()">${icon('arrow-counter-clockwise')} Обновить</button>`);
     }
     ready = true; loadedAt = Date.now();
+    if (Store.isLocal()) testBadge();
     if (fromEmail) { history.replaceState(null, '', location.pathname + (location.hash || '#/')); if (Store.user()) U.toast('Email подтверждён, вы вошли в аккаунт'); }
     window.addEventListener('hashchange', render);
     // Возвращение на вкладку: подтягиваем свежие данные, если прошло больше минуты

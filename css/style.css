@@ -931,7 +931,7 @@ input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 5px va
 }
 
 /* --- запуск, пустой каталог, вход */
-.boot { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; }
+.boot { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
 .boot-spin { width: 44px; height: 44px; border-radius: 50%; border: 3px solid var(--surface-3); border-top-color: var(--accent); animation: spin .8s linear infinite; }
 .boot-card { max-width: 480px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .boot-card .logo-mark { width: 56px; height: 56px; margin-bottom: 12px; }
@@ -956,3 +956,8 @@ input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 5px va
 .contacts a { color: var(--accent-ink); font-weight: 600; }
 label.is-busy { pointer-events: none; opacity: .7; }
 .btn:disabled.btn-primary { opacity: .7; }
+.boot { flex-direction: column; gap: 14px; }
+.boot-note { margin: 0; }
+.test-badge { position: fixed; left: 14px; bottom: 14px; z-index: 60; display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px 8px 10px; border-radius: 99px; border: 1px solid var(--line-2); background: var(--warn-bg); color: var(--warn); font-weight: 650; font-size: 12.5px; cursor: pointer; backdrop-filter: blur(12px); box-shadow: var(--shadow); }
+.test-badge .ic { font-size: 15px; }
+@media (max-width: 560px) { .test-badge span { display: none; } .test-badge { padding: 9px; } }
