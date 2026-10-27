@@ -503,7 +503,7 @@ ${reviews.length ? `<section class="wrap sec"><div class="sec-head"><h2 class="h
           <p class="fld-err" id="loginErr" hidden></p>
           <button class="btn btn-primary btn-block">Войти</button>
         </form>
-        <div class="auth-links"><button type="button" class="link sm" id="forgot">Забыли пароль?</button><span class="muted sm">Нет аккаунта? <a class="link" href="#/register">Регистрация</a></span></div>
+        <div class="auth-links"><span class="muted sm">Нет аккаунта? <a class="link" href="#/register">Регистрация</a></span></div>
         </div></div>`,
       mount() {
         const f = document.getElementById('loginForm'), err = document.getElementById('loginErr'), b = f.querySelector('button.btn-primary');
@@ -520,20 +520,6 @@ ${reviews.length ? `<section class="wrap sec"><div class="sec-head"><h2 class="h
           location.hash = '#' + (q.next || home(r.user));
         });
         f.addEventListener('input', () => { err.hidden = true; });
-        document.getElementById('forgot').addEventListener('click', () => U.modal({
-          title: 'Восстановление пароля',
-          body: `<form id="fgForm"><p class="muted">Пришлём на почту ссылку для смены пароля.</p><label class="fld"><span>Email</span><input class="input" type="email" name="email" required value="${esc(f.email.value)}"></label><button class="btn btn-primary btn-block">Отправить ссылку</button></form>`,
-          onMount(el, close) {
-            el.querySelector('#fgForm').addEventListener('submit', async e => {
-              e.preventDefault();
-              const em = e.target.email.value.trim();
-              if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return U.toast('Проверьте email', 'error');
-              const r = await Store.resetPassword(em);
-              if (r.error) return U.toast(r.error, 'error');
-              close(); U.toast('Если такой аккаунт есть, письмо уже в пути. Проверьте и папку «Спам»', 'ok', { ms: 6000 });
-            });
-          }
-        }));
       }
     };
   };
@@ -578,10 +564,6 @@ ${reviews.length ? `<section class="wrap sec"><div class="sec-head"><h2 class="h
           const res = await Store.register(d);
           b.disabled = false; b.textContent = 'Создать аккаунт';
           if (res.error) return fail(res.error);
-          if (res.confirm) {
-            document.querySelector('.auth-card').innerHTML = `<div class="center"><div class="empty-ic"><i class="ph-duotone ph-envelope-simple"></i></div><h1 class="h2">Подтвердите email</h1><p class="muted">Мы отправили письмо на <b>${esc(d.email)}</b>. Откройте ссылку из письма, и вы сразу войдёте в аккаунт. Письма нет? Проверьте папку «Спам».</p><a class="btn" href="#/login">Ко входу</a></div>`;
-            return;
-          }
           const u = res.user;
           U.toast(u?.role === 'owner' ? 'Вы владелец площадки. Добро пожаловать!' : d.role === 'master' ? 'Анкета создана! Заполните её в кабинете' : 'Добро пожаловать!');
           location.hash = u?.role === 'owner' ? '#/admin' : d.role === 'master' ? '#/cabinet?tab=profile' : '#/catalog';

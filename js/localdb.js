@@ -1,6 +1,5 @@
-// Тестовый режим: настоящий Postgres (PGlite) прямо в браузере вместо Supabase.
-// Запускается та же схема supabase/setup.sql с теми же правами доступа.
-// Данные хранятся только в этом браузере. Подтверждения по почте нет.
+// Локальная база: настоящий Postgres (PGlite) прямо в браузере, данные в IndexedDB.
+// Схема и права доступа из supabase/setup.sql. Регистрация мгновенная, без писем.
 window.LocalDB = (() => {
   const SKEY = 'masterok_local_session', DBNAME = 'masterok-test', VERSION = 1;
   const JSONB = new Set(['services', 'portfolio', 'warnings', 'limits', 'ban', 'data']);
@@ -99,7 +98,6 @@ window.LocalDB = (() => {
       return { data: { session }, error: null };
     },
     async signOut() { session = null; saveSession(); emit('SIGNED_OUT'); return { error: null }; },
-    async resetPasswordForEmail() { return { error: { message: 'В тестовом режиме письма не отправляются. Войдите в другой аккаунт или сбросьте тестовую базу' } }; },
     async updateUser({ password }) {
       if (!session) return { error: { message: 'Нужно войти' } };
       await pg.query('update auth.users set pw = $1 where id = $2', [await sha(password), session.user.id]);

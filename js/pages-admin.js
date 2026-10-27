@@ -517,8 +517,9 @@
         <button class="btn btn-primary mt">${icon('check')} Сохранить настройки</button>
       </form>
       <div class="card"><h2 class="h3">Резервная копия</h2>
-        <p class="muted sm">Все данные хранятся в Supabase. Здесь можно скачать копию в файл JSON. На бесплатном тарифе Supabase автоматических бэкапов нет, скачивайте копию раз в неделю.</p>
-        <button class="btn" id="exp">${icon('download')} Скачать копию</button></div>`,
+        <p class="muted sm">Данные хранятся в базе прямо в этом браузере. Скачайте копию в файл JSON, чтобы не потерять их при очистке браузера.</p>
+        <div class="row-btns"><button class="btn" id="exp">${icon('download')} Скачать копию</button>
+        ${Store.user()?.role === 'owner' ? `<button class="btn btn-danger-solid" id="wipe">${icon('trash')} Стереть базу</button>` : ''}</div></div>`,
       mount() {
         document.getElementById('setForm').addEventListener('submit', e => {
           e.preventDefault();
@@ -536,6 +537,11 @@
           U.toast('Настройки сохранены'); App.render();
         });
         document.getElementById('exp').addEventListener('click', () => U.download(`masterok-backup-${new Date().toISOString().slice(0, 10)}.json`, Store.exportJSON()));
+        const wipe = document.getElementById('wipe');
+        if (wipe) wipe.addEventListener('click', async () => {
+          if (!(await U.confirm('Удалить всех пользователей, мастеров и отзывы? Восстановить будет нельзя.', 'Стереть'))) return;
+          await LocalDB.wipe(); location.hash = '#/'; location.reload();
+        });
       }
     };
   };

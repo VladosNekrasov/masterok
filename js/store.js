@@ -1,5 +1,5 @@
-// Хранилище: данные живут в Supabase, в браузере держится копия для быстрой отрисовки.
-// Изменения применяются сразу на экране и отправляются на сервер; при ошибке данные перезагружаются.
+// Хранилище: данные живут в локальной базе (LocalDB), здесь держится копия для быстрой отрисовки.
+// Изменения применяются сразу на экране и записываются в базу; при ошибке данные перезагружаются.
 window.Store = (() => {
   const VKEY = 'masterok_viewed';
   const DAY = 864e5, FOREVER = 4102444800000;
@@ -8,7 +8,7 @@ window.Store = (() => {
   const DEFAULTS = { siteName: 'Мастерок', region: 'Кемеровская область', regionShort: 'Кузбасс', regionIn: 'в Кузбассе', cities: ['Кемерово'], days: { top: 7, premium: 30 }, autoApprove: false, reviewPremod: false, contactEmail: '', contactPhone: '', contactTelegram: '' };
   const empty = () => ({ settings: { ...DEFAULTS }, categories: [], users: [], masters: [], reviews: [], requests: [], payments: [], reports: [], notifications: [], log: [] });
 
-  let sb = null, db = empty(), session = null, rcache = null, onChange = () => {}, recovery = false, local = false;
+  let sb = null, db = empty(), session = null, rcache = null, onChange = () => {};
 
   // ---------- преобразование полей: snake_case в базе, camelCase в коде
   const ALIAS = { when: 'when_txt' }, BACK = { when_txt: 'when' };
@@ -26,7 +26,6 @@ window.Store = (() => {
 
   const ERR = [
     [/Invalid login credentials/i, 'Неверный email или пароль'],
-    [/Email not confirmed/i, 'Подтвердите email: откройте ссылку из письма'],
     [/User already registered|already been registered/i, 'Пользователь с таким email уже зарегистрирован'],
     [/Password should be at least/i, 'Пароль слишком короткий, нужно от 6 символов'],
     [/rate limit|too many/i, 'Слишком много попыток. Подождите немного и повторите'],
@@ -68,18 +67,15 @@ window.Store = (() => {
   }
 
   // ---------- запуск и загрузка
-  const configured = () => !!(window.CONFIG && CONFIG.SUPABASE_URL && !/YOUR-/.test(CONFIG.SUPABASE_URL) && CONFIG.SUPABASE_ANON_KEY && !/YOUR-/.test(CONFIG.SUPABASE_ANON_KEY));
   async function init(cb) {
     onChange = cb || onChange;
-    local = !configured();
-    sb = local ? await LocalDB.create() : supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, { auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true, autoRefreshToken: true } });
+    sb = await LocalDB.create();
     const { data } = await sb.auth.getSession();
     session = data.session;
     sb.auth.onAuthStateChange((ev, s) => {
       const changed = (s?.user?.id || null) !== (session?.user?.id || null);
       session = s;
-      if (ev === 'PASSWORD_RECOVERY') recovery = true;
-      if (changed || ev === 'PASSWORD_RECOVERY') reload().then(onChange);
+      if (changed) reload().then(onChange);
     });
     await reload();
   }
@@ -107,7 +103,6 @@ window.Store = (() => {
     }
     db = next; rcache = null;
   }
-  const takeRecovery = () => { const r = recovery; recovery = false; return r; };
 
   const settings = () => db.settings;
   function saveSettings(p) {
@@ -130,7 +125,6 @@ window.Store = (() => {
   // ---------- аккаунт
   const userById = id => db.users.find(u => u.id === id);
   function user() { const id = session?.user?.id; return id ? userById(id) || null : null; }
-  const redirectTo = () => location.origin + location.pathname;
   async function login(email, password) {
     const { data, error } = await sb.auth.signInWithPassword({ email: String(email).trim().toLowerCase(), password });
     if (error) return { error: errText(error) };
@@ -145,17 +139,12 @@ window.Store = (() => {
   async function register({ name, email, password, role, phone, categoryId, city }) {
     email = String(email).trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: 'Проверьте email' };
-    const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: redirectTo(), data: { name: name.trim(), role: role === 'master' ? 'master' : 'client', phone: phone || '', category_id: categoryId || '', city: city || '' } } });
+    const { data, error } = await sb.auth.signUp({ email, password, options: { data: { name: name.trim(), role: role === 'master' ? 'master' : 'client', phone: phone || '', category_id: categoryId || '', city: city || '' } } });
     if (error) return { error: errText(error) };
     if (data.user && data.user.identities && !data.user.identities.length) return { error: 'Пользователь с таким email уже зарегистрирован' };
-    if (!data.session) return { confirm: true };
     session = data.session;
     await reload();
     return { user: user() };
-  }
-  async function resetPassword(email) {
-    const { error } = await sb.auth.resetPasswordForEmail(String(email).trim().toLowerCase(), { redirectTo: redirectTo() });
-    return error ? { error: errText(error) } : {};
   }
   async function setPassword(pw) { const { error } = await sb.auth.updateUser({ password: pw }); return error ? { error: errText(error) } : {}; }
   async function changePassword(old, pw) {
@@ -519,9 +508,9 @@ window.Store = (() => {
 
   return {
     FOREVER, ROLES, REPORT_REASONS, SANCTION,
-    configured, isLocal: () => local, init, reload, takeRecovery, settings, saveSettings,
+    init, reload, settings, saveSettings,
     can, isStaff, isBanned, limit, until, banText, canSanction, isRestricted,
-    user, userById, login, logout, register, resetPassword, setPassword, changePassword, users, updateUser, deleteUser, setRole,
+    user, userById, login, logout, register, setPassword, changePassword, users, updateUser, deleteUser, setRole,
     myNotifs, unread, readNotifs, log,
     categories, cat, saveCategory, deleteCategory, catCounts, cityCounts,
     masters, master, masterByUser, isPremium, isTop, priceFrom, isVisible, rating, search, updateMaster, setMasterStatus, setVerified, deleteMaster, trackView, trackPhone,
